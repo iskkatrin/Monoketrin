@@ -1,6 +1,7 @@
 package monoketrinBot.Bot_Monoketrin;
 
-import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Contact;
@@ -14,8 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-//@Component
+import java.util.Map;
+
+
+@EnableScheduling // Включаем планировщик задач
 public class MyTelegramBot extends TelegramWebhookBot {
 
     private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
@@ -26,6 +31,9 @@ public class MyTelegramBot extends TelegramWebhookBot {
 
     // ID владельца бота
     private final Long ownerId = 457785510L;
+
+    // Хранение времени последнего действия пользователей
+    private final Map<Long, Long> lastActionTimes = new HashMap<>();
 
     public MyTelegramBot(String botToken, String botUsername, String botPath, UserContactRepository userContactRepository) {
         this.botToken = botToken;
@@ -49,8 +57,9 @@ public class MyTelegramBot extends TelegramWebhookBot {
         return botPath;
     }
 
+
     @Override
-    public BotApiMethod<?>  onWebhookUpdateReceived(Update update) {
+    public BotApiMethod<?> onWebhookUpdateReceived(Update update) {
         // Проверяем, есть ли текстовое сообщение
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
@@ -64,10 +73,22 @@ public class MyTelegramBot extends TelegramWebhookBot {
             if ("/start".equals(messageText)) {
                 message.setText(firstName + ", привет!❤\uFE0F\n\nНа связи Кейт, оставь свой номер телефона. Для этого нажми кнопку ниже:");
                 addPhoneNumberRequestButton(message);
+                lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
             } else if (isOccupation(messageText)) {
                 // Если выбрана сфера деятельности
                 saveUserOccupation(userId, messageText); // Здесь сохраняем сферу деятельности
-                message.setText("Отлично, благодарю тебя за ответ! Чтобы получить подарок, нажми на кнопку ниже");
+                message.setText("Отлично, благодарю тебя за ответ, чтобы получить подарок, кнопку ниже.\n\n" +
+                        "\"КАК Я СДЕЛАЛА ЗАПУСК НА 5 МЛН НА OXBATAX 200-300?\", благодаря этому уроку сможешь сейчас собрать заявки на свой продукт/услугу.\n\n" +
+                        "Внутри урока я разобрала:\n" +
+                        "- Как за несколько сюжетных линий - прогреть аудиторию, даже если уже продавали много раз на аудиторию.\n" +
+                        "- Почему сейчас нет продаж с блога?\n" +
+                        "- Как продавать, но чтобы было не душно?\n" +
+                        "- Почему аудитория не реагирует на ваш прогрев?\n" +
+                        "- Каким сторителлингом уже сегодня собрать кучу заявок.\n\n" +
+                        "Но это ещё не все подарки... Я подготовила для вас шаблон, который....\n" +
+                        "Чтобы забрать, нужно посмотреть урок и найти кодовое слово, а потом написать, вышлю тебе шаблон.");
+                addGiftButton(message); // Добавляем кнопку для получения подарка
+                lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
             } else if ("/userlist".equals(messageText)) {
                 sendUserListToOwner();
             } else {
@@ -91,11 +112,43 @@ public class MyTelegramBot extends TelegramWebhookBot {
             message.setChatId(update.getMessage().getChatId().toString());
             message.setText("Спасибо, " + firstName + "! Теперь давай познакомимся поближе. Выбери свою сферу деятельности, нажав на одну из кнопок ниже.");
             addOccupationButtons(message);
+            lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
 
             return message;
         }
 
         return null;
+    }
+
+    // Запланированное задание для проверки бездействия пользователей
+    @Scheduled(fixedRate = 60000) // Проверяем каждую минуту
+    public void checkInactiveUsers() {
+        long currentTime = System.currentTimeMillis();
+        for (Map.Entry<Long, Long> entry : lastActionTimes.entrySet()) {
+            Long userId = entry.getKey();
+            Long lastActionTime = entry.getValue();
+
+            // Если прошло больше 30 минут с последнего действия
+            if (currentTime - lastActionTime > 30 * 60 * 1000) {
+                sendReminderMessage(userId);
+                lastActionTimes.remove(userId); // Удаляем пользователя из списка, чтобы не отправлять повторное сообщение
+            }
+        }
+    }
+
+    // Метод для отправки напоминалки
+    private void sendReminderMessage(Long userId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(userId.toString());
+        message.setText("Понимаю, бывает такое, что можешь отвлечься\n\n" +
+                "Ты уже в шаге от того, чтобы получить подарок, а именно урок без сухой теории, а с применимыми инструментами и примерами моих сторителлингов. " +
+                "С этой информацией сможешь уже сейчас собрать заявки на свой продукт/услугу\n\n" +
+                "Нажимай на кнопку выше, чтобы я понимала, в чем могу быть полезна для тебя.");
+        try {
+            execute(message);
+        } catch (Exception e) {
+            logger.error("Ошибка при отправке напоминания пользователю с ID: " + userId, e);
+        }
     }
 
     // Вспомогательный метод для проверки, является ли текст выбором сферы деятельности
@@ -105,7 +158,8 @@ public class MyTelegramBot extends TelegramWebhookBot {
                 messageText.equals("Я не работаю, ищу себя");
     }
 
-    // Метод для отправки списка пользователей владельцу
+
+// Метод для отправки списка пользователей владельцу
     private void sendUserListToOwner() {
         List<UserContact> users = userContactRepository.findAll(); // Получаем всех пользователей
         StringBuilder userList = new StringBuilder("Список пользователей:\n");
@@ -178,6 +232,24 @@ public class MyTelegramBot extends TelegramWebhookBot {
         keyboard.add(row1);
         keyboard.add(row2);
         keyboard.add(row3);
+
+        keyboardMarkup.setKeyboard(keyboard);
+        message.setReplyMarkup(keyboardMarkup);
+    }
+
+    // Метод для добавления кнопки получения подарка
+    private void addGiftButton(SendMessage message) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+
+        KeyboardButton giftButton = new KeyboardButton();
+        giftButton.setText("ЗАБИРАЙ УРОК");
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(giftButton);
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+        keyboard.add(row);
 
         keyboardMarkup.setKeyboard(keyboard);
         message.setReplyMarkup(keyboardMarkup);
