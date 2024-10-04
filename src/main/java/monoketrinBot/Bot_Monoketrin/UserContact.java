@@ -3,22 +3,25 @@ package monoketrinBot.Bot_Monoketrin;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 @Entity
-@Table(name = "user_contacts")
+@Table(name = "user_contacts2")
 public class UserContact {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
-    @Column(name = "user_id")
+//    @GeneratedValue(strategy = GenerationType.IDENTITY)
+//    private Long id;
+
+    @Id
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
 
-    @Column(name = "first_name")
+    @Column(name = "first_name", nullable = false)
     private String firstName;
 
     @Column(name = "occupation")
@@ -29,8 +32,7 @@ public class UserContact {
         this.userId = userId;
         this.firstName = firstName;
         this.phoneNumber = phoneNumber;
-        this.occupation = occupation;
-    }
+        this.occupation = occupation;}
 
     public UserContact() {} // Пустой конструктор для JPA
 }

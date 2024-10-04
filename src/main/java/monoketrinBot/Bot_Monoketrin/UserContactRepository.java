@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface UserContactRepository extends JpaRepository<UserContact, Long> {
-    Optional<UserContact> findByUserId(Long userId);
+//    Optional<UserContact> findByUserId(Long userId);
 }

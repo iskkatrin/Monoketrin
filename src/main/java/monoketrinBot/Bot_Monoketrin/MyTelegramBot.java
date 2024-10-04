@@ -1,6 +1,7 @@
 package monoketrinBot.Bot_Monoketrin;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Contact;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -14,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-@Component
+//@Component
 public class MyTelegramBot extends TelegramWebhookBot {
 
     private static final Logger logger = LoggerFactory.getLogger(MyTelegramBot.class);
@@ -49,7 +50,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
     }
 
     @Override
-    public BotApiMethod<?> onWebhookUpdateReceived(Update update) {
+    public BotApiMethod<?>  onWebhookUpdateReceived(Update update) {
         // Проверяем, есть ли текстовое сообщение
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
@@ -66,7 +67,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
             } else if (isOccupation(messageText)) {
                 // Если выбрана сфера деятельности
                 saveUserOccupation(userId, messageText); // Здесь сохраняем сферу деятельности
-                message.setText("Спасибо, " + firstName + "! Ваша информация сохранена.");
+                message.setText("Отлично, благодарю тебя за ответ! Чтобы получить подарок, нажми на кнопку ниже");
             } else if ("/userlist".equals(messageText)) {
                 sendUserListToOwner();
             } else {
@@ -183,6 +184,8 @@ public class MyTelegramBot extends TelegramWebhookBot {
     }
 
     // Метод для сохранения контакта пользователя
+    // todo прочитать про прокси в спринге и как работает transactional
+//    @Transactional
     public void saveUserContact(Long userId, String firstName, String phoneNumber, String occupation) {
         UserContact userContact = userContactRepository.findById(userId)
                 .orElse(new UserContact(userId, firstName, phoneNumber, occupation)); // Создаем нового пользователя, если не найден
@@ -196,14 +199,16 @@ public class MyTelegramBot extends TelegramWebhookBot {
         }
 
         userContactRepository.save(userContact); // Сохраняем пользователя
+//        log.info("contact saved")
     }
 
     // Метод для сохранения сферы деятельности пользователя
+    @Transactional
     public void saveUserOccupation(Long userId, String occupation) {
         UserContact user = userContactRepository.findById(userId).orElse(null);
         if (user != null) {
             user.setOccupation(occupation); // Устанавливаем новую сферу деятельности
-            userContactRepository.save(user); // Сохраняем изменения
+//            userContactRepository.save(user); // Сохраняем изменения
         } else {
             System.out.println("Пользователь не найден для ID: " + userId);
         }
