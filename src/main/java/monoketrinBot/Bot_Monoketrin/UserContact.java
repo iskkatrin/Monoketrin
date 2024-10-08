@@ -10,10 +10,6 @@ import java.time.LocalDateTime;
 @Table(name = "user_contacts2")
 public class UserContact {
 
-
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    private Long id;
-
     @Id
     @Column(name = "user_id", nullable = false)
     private Long userId;

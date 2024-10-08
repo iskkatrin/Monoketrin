@@ -2,7 +2,6 @@ package monoketrinBot.Bot_Monoketrin;
 
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Contact;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -14,10 +13,7 @@ import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 
 @EnableScheduling // Включаем планировщик задач
@@ -57,67 +53,72 @@ public class MyTelegramBot extends TelegramWebhookBot {
         return botPath;
     }
 
-
     @Override
     public BotApiMethod<?> onWebhookUpdateReceived(Update update) {
-        // Проверяем, есть ли текстовое сообщение
+        SendMessage message = new SendMessage();
+
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
-            Long userId = update.getMessage().getFrom().getId(); // Используем userId
+            Long userId = update.getMessage().getFrom().getId();
             String firstName = update.getMessage().getFrom().getFirstName();
-
-            SendMessage message = new SendMessage();
             message.setChatId(update.getMessage().getChatId().toString());
 
-            // Обработка команды /start
             if ("/start".equals(messageText)) {
                 message.setText(firstName + ", привет!❤\uFE0F\n\nНа связи Кейт, оставь свой номер телефона. Для этого нажми кнопку ниже:");
                 addPhoneNumberRequestButton(message);
-                lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
-            } else if (isOccupation(messageText)) {
-                // Если выбрана сфера деятельности
-                saveUserOccupation(userId, messageText); // Здесь сохраняем сферу деятельности
-                message.setText("Отлично, благодарю тебя за ответ, чтобы получить подарок, кнопку ниже.\n\n" +
-                        "\"КАК Я СДЕЛАЛА ЗАПУСК НА 5 МЛН НА OXBATAX 200-300?\", благодаря этому уроку сможешь сейчас собрать заявки на свой продукт/услугу.\n\n" +
-                        "Внутри урока я разобрала:\n" +
-                        "- Как за несколько сюжетных линий - прогреть аудиторию, даже если уже продавали много раз на аудиторию.\n" +
-                        "- Почему сейчас нет продаж с блога?\n" +
-                        "- Как продавать, но чтобы было не душно?\n" +
-                        "- Почему аудитория не реагирует на ваш прогрев?\n" +
-                        "- Каким сторителлингом уже сегодня собрать кучу заявок.\n\n" +
-                        "Но это ещё не все подарки... Я подготовила для вас шаблон, который....\n" +
-                        "Чтобы забрать, нужно посмотреть урок и найти кодовое слово, а потом написать, вышлю тебе шаблон.");
-                addGiftButton(message); // Добавляем кнопку для получения подарка
-                lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
+                lastActionTimes.put(userId, System.currentTimeMillis());
+
             } else if ("/userlist".equals(messageText)) {
                 sendUserListToOwner();
+            } else if (isOccupation(messageText)) {
+                saveUserOccupation(userId, messageText);
+                message.setText("Отлично, благодарю тебя за ответ, чтобы получить подарок, нажми кнопку ниже.\n\n" +
+                        "\"КАК Я СДЕЛАЛА ЗАПУСК НА 5 МЛН НА OXBATAX 200-300?\", благодаря этому уроку сможешь сейчас собрать заявки на свой продукт/услугу.\n\n" +
+                        "Но это ещё не все подарки... Я подготовила для вас шаблон, который....\n" +
+                        "Чтобы забрать, нужно посмотреть урок и найти кодовое слово, а потом написать, вышлю тебе шаблон.");
+                addGiftButton(message);
+                lastActionTimes.put(userId, System.currentTimeMillis());
+            }  else if ("ЗАБИРАЙ УРОК".equals(messageText)) {
+                sendLessonLink(userId);
+                message.setText("Но это ещё не все подарки... Я подготовила для вас шаблон. Чтобы его забрать, нужно посмотреть урок, после чего я отправлю материал.");
+                sendReminderIn10Minutes(userId);
+            } else if ("Да".equals(messageText)) {
+                sendTemplateLink(userId); // Отправляем ссылку на шаблон
+                message.setText("Супер! Ты сделал шаг к следующему подарку от меня\n" +
+                        "\n" +
+                        "Лови шаблон, который поможет всего за 15 сторис собрать заявки на любой ваш продукт Я сама благодаря нему собрала с охватов 200- 22 заявки за один вечер на личную работу\n" +
+                        "\n" +
+                        "После просмотра урока и прочтения шаблона возвращайся и поделись, пожалуйста, обратной связью\uD83D\uDC97\n" +
+                        "\n" +
+                        "Я делюсь тем, за что обычно люди берут большие деньги или продают это на консультациях. Для меня важно быть ВКЛАДОМ в каждого человека, который попал ко мне в блог!\n" +
+                        "\n" +
+                        "Поэтому давай сделаем равноценный обмен, с меня подарки и полезный контент, с тебя обратная связь!\n" +
+                        "\n" +
+                        "Напиши, что вынесешь для себя полезного из этих материалов");
+            } else if ("Нет".equals(messageText)) {
+                message.setText("Сколько времени тебе нужно на просмотр?");
+                message.setReplyMarkup(createTimeOptionsKeyboard());
+            } else if (Arrays.asList("30 минут", "5 часов", "1 день").contains(messageText)) {
+                long delay = getDelayForTimeOption(messageText);
+                scheduleReminder(userId, delay);
+                message.setText("Хорошо, напомню через " + messageText.toLowerCase() + ".❤\uFE0F");
             } else {
                 message.setText("Я не понимаю тебя. Нажми кнопку ниже, чтобы отправить свой номер телефона.");
             }
-
-            return message;
-        }
-
-        // Проверка наличия контакта
-        if (update.hasMessage() && update.getMessage().hasContact()) {
+        } else if (update.hasMessage() && update.getMessage().hasContact()) {
             Contact contact = update.getMessage().getContact();
-            Long userId = update.getMessage().getFrom().getId(); // Используем userId
+            Long userId = update.getMessage().getFrom().getId();
             String firstName = update.getMessage().getFrom().getFirstName();
             String phoneNumber = contact.getPhoneNumber();
 
-            // Сохраняем контакт с нулевой сферой деятельности
-            saveUserContact(userId, firstName, phoneNumber, null); // Сохранение без сферы деятельности
-
-            SendMessage message = new SendMessage();
+            saveUserContact(userId, firstName, phoneNumber, null);
             message.setChatId(update.getMessage().getChatId().toString());
             message.setText("Спасибо, " + firstName + "! Теперь давай познакомимся поближе. Выбери свою сферу деятельности, нажав на одну из кнопок ниже.");
             addOccupationButtons(message);
-            lastActionTimes.put(userId, System.currentTimeMillis()); // Обновляем время последнего действия
-
-            return message;
+            lastActionTimes.put(userId, System.currentTimeMillis());
         }
 
-        return null;
+        return message;
     }
 
     // Запланированное задание для проверки бездействия пользователей
@@ -159,7 +160,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
     }
 
 
-// Метод для отправки списка пользователей владельцу
+    // Метод для отправки списка пользователей владельцу
     private void sendUserListToOwner() {
         List<UserContact> users = userContactRepository.findAll(); // Получаем всех пользователей
         StringBuilder userList = new StringBuilder("Список пользователей:\n");
@@ -256,8 +257,6 @@ public class MyTelegramBot extends TelegramWebhookBot {
     }
 
     // Метод для сохранения контакта пользователя
-    // todo прочитать про прокси в спринге и как работает transactional
-//    @Transactional
     public void saveUserContact(Long userId, String firstName, String phoneNumber, String occupation) {
         UserContact userContact = userContactRepository.findById(userId)
                 .orElse(new UserContact(userId, firstName, phoneNumber, occupation)); // Создаем нового пользователя, если не найден
@@ -275,7 +274,6 @@ public class MyTelegramBot extends TelegramWebhookBot {
     }
 
     // Метод для сохранения сферы деятельности пользователя
-    @Transactional
     public void saveUserOccupation(Long userId, String occupation) {
         UserContact user = userContactRepository.findById(userId).orElse(null);
         if (user != null) {
@@ -284,5 +282,125 @@ public class MyTelegramBot extends TelegramWebhookBot {
         } else {
             System.out.println("Пользователь не найден для ID: " + userId);
         }
+    }
+
+    private void sendReminderIn10Minutes(Long userId) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(10 * 60 * 1000);
+                SendMessage reminder = new SendMessage();
+                reminder.setChatId(userId.toString());
+                reminder.setText("Удалось посмотреть урок?");
+                addYesNoButtons(reminder);
+                execute(reminder);
+            } catch (Exception e) {
+                logger.error("Ошибка при отправке напоминания через 10 минут пользователю с ID: " + userId, e);
+            }
+        }).start();
+    }
+
+    private void addYesNoButtons(SendMessage message) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        keyboardMarkup.setResizeKeyboard(true);
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton("Да"));
+        row.add(new KeyboardButton("Нет"));
+
+        List<KeyboardRow> keyboard = new ArrayList<>();
+        keyboard.add(row);
+
+        keyboardMarkup.setKeyboard(keyboard);
+        message.setReplyMarkup(keyboardMarkup);
+    }
+
+    // Метод для создания клавиатуры с вариантами времени
+    private ReplyKeyboardMarkup createTimeOptionsKeyboard() {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton("30 минут"));
+        row.add(new KeyboardButton("5 часов"));
+        row.add(new KeyboardButton("1 день"));
+        keyboard.add(row);
+
+        keyboardMarkup.setKeyboard(keyboard);
+        keyboardMarkup.setResizeKeyboard(true);
+        keyboardMarkup.setOneTimeKeyboard(true);
+
+        return keyboardMarkup;
+    }
+
+    // Метод для создания клавиатуры с вариантами "Да" и "Нет"
+    private ReplyKeyboardMarkup createYesNoKeyboard() {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton("Да"));
+        row.add(new KeyboardButton("Нет"));
+        keyboard.add(row);
+
+        keyboardMarkup.setKeyboard(keyboard);
+        keyboardMarkup.setResizeKeyboard(true);
+        keyboardMarkup.setOneTimeKeyboard(true);
+
+        return keyboardMarkup;
+    }
+
+    // Метод для определения задержки в миллисекундах в зависимости от выбора пользователя
+    private long getDelayForTimeOption(String option) {
+        switch (option) {
+            case "30 минут":
+                return 30 * 60 * 1000; // 30 минут в миллисекундах
+            case "5 часов":
+                return 5 * 60 * 60 * 1000; // 5 часов в миллисекундах
+            case "1 день":
+                return 24 * 60 * 60 * 1000; // 1 день в миллисекундах
+            default:
+                return 0;
+        }
+    }
+
+    // Метод для планирования отправки напоминания
+    private void scheduleReminder(Long userId, long delay) {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                SendMessage reminder = new SendMessage();
+                reminder.setChatId(userId.toString()); // Используем userId в качестве chatId
+                reminder.setText("Удалось ли посмотреть урок?");
+                reminder.setReplyMarkup(createYesNoKeyboard());
+                executeMessage(reminder);
+            }
+        }, delay);
+    }
+
+    // Метод для отправки сообщения пользователю
+    private void executeMessage(SendMessage message) {
+        try {
+            // Вызов API для отправки сообщения
+            execute(message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Метод для отправки ссылки на видеоурок
+    private void sendLessonLink(Long userId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(userId.toString());
+        message.setText("https://youtu.be/HcQzxIQPqAo?feature=shared");
+        executeMessage(message);
+    }
+
+    // Метод для отправки ссылки на шалон
+    private void sendTemplateLink(Long userId) {
+        SendMessage message = new SendMessage();
+        message.setChatId(userId.toString());
+        message.setText("(https://docs.google.com/document/d/1bGS6FxBN3f-Xuqc6EkiijVU6qpGN2gIv5IeBYWV3dhk/edit?usp=sharing)");
+        executeMessage(message);
     }
 }
