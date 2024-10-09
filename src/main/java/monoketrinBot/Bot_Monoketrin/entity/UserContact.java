@@ -1,13 +1,11 @@
-package monoketrinBot.Bot_Monoketrin;
+package monoketrinBot.Bot_Monoketrin.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
 @Entity
-@Table(name = "user_contacts2")
+@Table(name = "user_contacts")
 public class UserContact {
 
     @Id

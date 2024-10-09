@@ -1,5 +1,9 @@
 package monoketrinBot.Bot_Monoketrin;
 
+import monoketrinBot.Bot_Monoketrin.entity.Feedback;
+import monoketrinBot.Bot_Monoketrin.entity.UserContact;
+import monoketrinBot.Bot_Monoketrin.repository.FeedbackRepository;
+import monoketrinBot.Bot_Monoketrin.repository.UserContactRepository;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -24,6 +28,8 @@ public class MyTelegramBot extends TelegramWebhookBot {
     private final String botUsername;
     private final String botPath;
     private final UserContactRepository userContactRepository;
+    private final FeedbackRepository feedbackRepository;
+    private Set<Long> userAwaitingFeedback = new HashSet<>();
 
     // ID владельца бота
     private final Long ownerId = 457785510L;
@@ -31,11 +37,12 @@ public class MyTelegramBot extends TelegramWebhookBot {
     // Хранение времени последнего действия пользователей
     private final Map<Long, Long> lastActionTimes = new HashMap<>();
 
-    public MyTelegramBot(String botToken, String botUsername, String botPath, UserContactRepository userContactRepository) {
+    public MyTelegramBot(String botToken, String botUsername, String botPath, UserContactRepository userContactRepository, FeedbackRepository feedbackRepository) {
         this.botToken = botToken;
         this.botUsername = botUsername;
         this.botPath = botPath;
         this.userContactRepository = userContactRepository;
+        this.feedbackRepository = feedbackRepository;
     }
 
     @Override
@@ -73,28 +80,32 @@ public class MyTelegramBot extends TelegramWebhookBot {
             } else if (isOccupation(messageText)) {
                 saveUserOccupation(userId, messageText);
                 message.setText("Отлично, благодарю тебя за ответ, чтобы получить подарок, нажми кнопку ниже.\n\n" +
-                        "\"КАК Я СДЕЛАЛА ЗАПУСК НА 5 МЛН НА OXBATAX 200-300?\", благодаря этому уроку сможешь сейчас собрать заявки на свой продукт/услугу.\n\n" +
-                        "Но это ещё не все подарки... Я подготовила для вас шаблон, который....\n" +
-                        "Чтобы забрать, нужно посмотреть урок и найти кодовое слово, а потом написать, вышлю тебе шаблон.");
+                        "\"КАК Я СДЕЛАЛА ЗАПУСК НА 5 МЛН НА OXBATAX 200-300?\", благодаря этому уроку сможешь сейчас собрать заявки на свой продукт/услугу.\n\n");
                 addGiftButton(message);
                 lastActionTimes.put(userId, System.currentTimeMillis());
-            }  else if ("ЗАБИРАЙ УРОК".equals(messageText)) {
+            } else if ("ЗАБИРАЙ УРОК".equals(messageText)) {
                 sendLessonLink(userId);
                 message.setText("Но это ещё не все подарки... Я подготовила для вас шаблон. Чтобы его забрать, нужно посмотреть урок, после чего я отправлю материал.");
                 sendReminderIn10Minutes(userId);
             } else if ("Да".equals(messageText)) {
-                sendTemplateLink(userId); // Отправляем ссылку на шаблон
-                message.setText("Супер! Ты сделал шаг к следующему подарку от меня\n" +
-                        "\n" +
-                        "Лови шаблон, который поможет всего за 15 сторис собрать заявки на любой ваш продукт Я сама благодаря нему собрала с охватов 200- 22 заявки за один вечер на личную работу\n" +
-                        "\n" +
-                        "После просмотра урока и прочтения шаблона возвращайся и поделись, пожалуйста, обратной связью\uD83D\uDC97\n" +
-                        "\n" +
-                        "Я делюсь тем, за что обычно люди берут большие деньги или продают это на консультациях. Для меня важно быть ВКЛАДОМ в каждого человека, который попал ко мне в блог!\n" +
-                        "\n" +
-                        "Поэтому давай сделаем равноценный обмен, с меня подарки и полезный контент, с тебя обратная связь!\n" +
-                        "\n" +
-                        "Напиши, что вынесешь для себя полезного из этих материалов");
+                // Отправляем шаблон с текстом и добавляем пользователя в список ожидания обратной связи
+                sendTemplateLink(userId);
+                message.setText("Супер! Ты сделал шаг к следующему подарку от меня\n\n" +
+                        "Лови шаблон, который поможет всего за 15 сторис собрать заявки на любой ваш продукт. Я сама благодаря нему собрала с охватов 200-22 заявки за один вечер на личную работу.\n\n" +
+                        "После просмотра урока и прочтения шаблона возвращайся и поделись, пожалуйста, обратной связью\uD83D\uDC97\n\n" +
+                        "Я делюсь тем, за что обычно люди берут большие деньги или продают это на консультациях. Для меня важно быть ВКЛАДОМ в каждого человека, который попал ко мне в блог!\n\n" +
+                        "Поэтому давай сделаем равноценный обмен: с меня подарки и полезный контент, с тебя — обратная связь!\n\n" +
+                        "Напиши, что вынесешь для себя полезного из этих материалов.");
+                userAwaitingFeedback.add(userId); // Добавляем пользователя в список ожидания обратной связи
+                lastActionTimes.put(userId, System.currentTimeMillis());
+            } else if (userAwaitingFeedback.contains(userId) && !Arrays.asList("Да", "Нет").contains(messageText)) {
+                // Если пользователь в списке ожидания и отправил текст, считаем это обратной связью
+                String feedbackText = update.getMessage().getText();
+                String userName = update.getMessage().getFrom().getFirstName();
+                saveFeedback(userId, userName, feedbackText); // Сохраняем обратную связь
+
+                message.setText("Спасибо за обратную связь!❤\uFE0F Мы ценим твоё мнение.");
+                userAwaitingFeedback.remove(userId); // Убираем пользователя из списка ожидания обратной связи
             } else if ("Нет".equals(messageText)) {
                 message.setText("Сколько времени тебе нужно на просмотр?");
                 message.setReplyMarkup(createTimeOptionsKeyboard());
@@ -102,6 +113,10 @@ public class MyTelegramBot extends TelegramWebhookBot {
                 long delay = getDelayForTimeOption(messageText);
                 scheduleReminder(userId, delay);
                 message.setText("Хорошо, напомню через " + messageText.toLowerCase() + ".❤\uFE0F");
+            } else if ("/feedback".equalsIgnoreCase(messageText)) {
+                // Команда для получения всех отзывов
+                String allFeedbacks = getAllFeedbacks();
+                message.setText(allFeedbacks);
             } else {
                 message.setText("Я не понимаю тебя. Нажми кнопку ниже, чтобы отправить свой номер телефона.");
             }
@@ -120,6 +135,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
 
         return message;
     }
+
 
     // Запланированное задание для проверки бездействия пользователей
     @Scheduled(fixedRate = 60000) // Проверяем каждую минуту
@@ -396,11 +412,32 @@ public class MyTelegramBot extends TelegramWebhookBot {
         executeMessage(message);
     }
 
-    // Метод для отправки ссылки на шалон
+    // Метод для отправки ссылки на шаблон
     private void sendTemplateLink(Long userId) {
         SendMessage message = new SendMessage();
         message.setChatId(userId.toString());
         message.setText("https://docs.google.com/document/d/1bGS6FxBN3f-Xuqc6EkiijVU6qpGN2gIv5IeBYWV3dhk/edit?usp=sharing");
         executeMessage(message);
+    }
+
+    // Метод для сохранения обратной связи
+    private void saveFeedback(Long userId, String userName, String feedbackText) {
+        Feedback feedback = new Feedback();
+        feedback.setUserId(userId);
+        feedback.setUserName(userName);
+        feedback.setFeedback(feedbackText);
+        feedbackRepository.save(feedback);
+    }
+
+    // Метод для отправки обратной связи
+    private String getAllFeedbacks() {
+        StringBuilder feedbacksBuilder = new StringBuilder("Обратная связь от пользователей:\n\n");
+        feedbackRepository.findAll().forEach(feedback ->
+                feedbacksBuilder.append(feedback.getUserName())
+                        .append(": ")
+                        .append(feedback.getFeedback())
+                        .append("\n\n")
+        );
+        return feedbacksBuilder.toString();
     }
 }
