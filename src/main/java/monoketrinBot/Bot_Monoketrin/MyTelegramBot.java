@@ -278,7 +278,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
         UserContact user = userContactRepository.findById(userId).orElse(null);
         if (user != null) {
             user.setOccupation(occupation); // Устанавливаем новую сферу деятельности
-//            userContactRepository.save(user); // Сохраняем изменения
+            userContactRepository.save(user); // Сохраняем изменения
         } else {
             System.out.println("Пользователь не найден для ID: " + userId);
         }
@@ -400,7 +400,7 @@ public class MyTelegramBot extends TelegramWebhookBot {
     private void sendTemplateLink(Long userId) {
         SendMessage message = new SendMessage();
         message.setChatId(userId.toString());
-        message.setText("(https://docs.google.com/document/d/1bGS6FxBN3f-Xuqc6EkiijVU6qpGN2gIv5IeBYWV3dhk/edit?usp=sharing)");
+        message.setText("https://docs.google.com/document/d/1bGS6FxBN3f-Xuqc6EkiijVU6qpGN2gIv5IeBYWV3dhk/edit?usp=sharing");
         executeMessage(message);
     }
 }
