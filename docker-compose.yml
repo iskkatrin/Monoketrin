@@ -1,27 +1,27 @@
-#services:
-#  app:
-#    build:
-#      context: .
-#      dockerfile: Dockerfile
-#    ports:
-#      - "8080:8080"
-#    environment:
-#      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/MonoketrinBot
-#      SPRING_DATASOURCE_USERNAME: Katerina_Larina
-#      SPRING_DATASOURCE_PASSWORD: 26082002
-#    depends_on:
-#      - db
-#
-#  db:
-#    image: postgres:15
-#    environment:
-#      POSTGRES_DB: MonoketrinBot
-#      POSTGRES_USER: Katerina_Larina
-#      POSTGRES_PASSWORD: 26082002
-#    volumes:
-#      - postgres_data:/var/lib/postgresql/data
-#    ports:
-#      - "5432:5432"
-#
-#volumes:
-#  postgres_data:
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/MonoketrinBot
+      SPRING_DATASOURCE_USERNAME: katerina
+      SPRING_DATASOURCE_PASSWORD: 150819802002
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: MonoketrinBot
+      POSTGRES_USER: katerina
+      POSTGRES_PASSWORD: 150819802002
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
