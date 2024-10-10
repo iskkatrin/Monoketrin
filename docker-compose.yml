@@ -1,27 +1,52 @@
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/MonoketrinBot
-      SPRING_DATASOURCE_USERNAME: katerina
-      SPRING_DATASOURCE_PASSWORD: 150819802002
-    depends_on:
-      - db
+#version: '3.8'
+#
+#services:
+#  db:
+#    image: postgres:15
+#    restart: always
+#    environment:
+#      POSTGRES_DB: MonoketrinBot
+#      POSTGRES_USER: katerina
+#      POSTGRES_PASSWORD: 150819802002
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+#
+#  bot:
+#    build: .
+#    ports:
+#      - "8080:8080"  # Пробрасываем порт 8080
+#    environment:
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/MonoketrinBot
+#      SPRING_DATASOURCE_USERNAME: katerina
+#      SPRING_DATASOURCE_PASSWORD: 150819802002
+#      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+#    depends_on:
+#      - db
+#
+#volumes:
+#  postgres_data:
 
+version: '3.8'
+
+services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: MonoketrinBot
-      POSTGRES_USER: katerina
-      POSTGRES_PASSWORD: 150819802002
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: 150819802002  # Без создания базы и пользователя
+      POSTGRES_USER: katerina  # Добавлено для создания пользователя
+      POSTGRES_DB: monoketrinbot  # Добавлено для создания базы данных
+
+  bot:
+    build: .
     ports:
-      - "5432:5432"
+      - "8080:8080"  # Пробрасываем порт 8080
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/monoketrinbot  # Изменено на маленькие буквы
+      SPRING_DATASOURCE_USERNAME: katerina
+      SPRING_DATASOURCE_PASSWORD: 150819802002
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      - db
 
 volumes:
   postgres_data:
